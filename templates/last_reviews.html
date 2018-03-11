@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block content1 %}
+	{% if reviews %}
+		<b>Here are the most recent reviews posted by users:
+		{% for r in reviews %}
+			<b>{{ r[0] }}</b> gave <b>{{ r[1] }}</b> a score of <b>{{ r[2] }}.</b><br><b>Here's what they had to say:</b><br>{{ r[3] }}
+		{% endfor %}
+	{% else %}
+		<b>There are no reviews posted so far,</b> but you can <a href='search'>create one</a> if you want!
+	{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content1 %}
+	{% if results %}
+		<b>Here are the games that match those search criteria:</b><br><br>
+		{% for r in results %}
+			<b>{{ r['name'] }}</b><br>
+			<b>Description:</b>{{ r['tagline'] }}<br>
+			<b>Rating:</b> {{ r['rating'] }}<br>
+			<b>Platforms:</b> {{ r['platforms'] }}<br><br>
+		{% endfor %}
+	{% else %}
+		<b>There are no games found with those criteria.</b> You can try searching again <a href='/search'>here.</a>
+	{% endif %}
+{% endblock %}
