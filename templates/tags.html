@@ -1,12 +1,9 @@
 {% extends 'base.html' %}
 
 {% block content1 %}
-Use this form to search the GiantBomb catalog of video games, or click below to see other options.<br>
-<form action="{{ url_for('search') }}" method="POST">
-	{{ form.hidden_tag() }}
-    {{ form.name.label() }}{{ form.name() }}<br>
-    {{ form.platform.label() }}{{ form.platform() }}<br>
-    {{ form.sorthow.label() }}{{ form.sorthow() }}<br>
+Use this form to search existing reviews based on the "tag" keywords, or click below to see other options.<br><br>
+<form action="{{ url_for('tag_results') }}" method="GET">
+    {{ form.tagtext.label() }}{{ form.tagtext() }}<br>
     {{ form.submit() }}
 </form>
 {% endblock %}

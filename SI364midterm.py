@@ -131,7 +131,7 @@ class ReviewForm(FlaskForm):
 
 
 class TagForm(FlaskForm):
-    score = StringField("Select one or more tags to search (separated with commas): ")
+    tagtext = StringField("Select one or more tags to search (separated with commas): ")
     submit = SubmitField()
 
 #######################
@@ -143,16 +143,6 @@ def page_not_found(e):
     return render_template('404.html'), 404
 
 @app.route('/', methods=['GET', 'POST'])
-def home():
-    form = NameForm() # User should be able to enter name after name and each one will be saved, even if it's a duplicate! Sends data with GET
-    if form.validate_on_submit():
-        name = form.name.data
-        newname = Username(name=name)
-        db.session.add(newname)
-        db.session.commit()
-        return redirect(url_for('search'))
-    return render_template('base.html',form=form)
-
 @app.route('/search', methods=['GET', 'POST'])
 def search():
     form = GameForm()
@@ -238,21 +228,20 @@ def review():
 
 @app.route('/tags', methods=['GET', 'POST'])
 def tags():
-    form = Form()
-    if form.validate_on_submit():
+    form = TagForm()
+    return render_template('tags.html',form=form)
 
-        return render_template('game_results.html', results=found_games)
-    return render_template('home.html',form=form)
-
-@app.route('/tag_results')
+@app.route('/tag_results', methods=['GET', 'POST'])
 def tag_results():
     results = []
     if request.args:
-        tags = request.args.get('tags')
-        tag_list = str(form.tags.data).split(",")
+        tags = request.args.get('tagtext')
+        tag_list = str(tags).split(",")
         for tl in tag_list:
+            print('hit tl')
             found = Tag.query.filter_by(tagtext=tl.strip()).all()
             for f in found:
+                print('hit f')
                 rev = Review.query.filter_by(id=f.review).first()
                 game = Game.query.filter_by(id=rev.game).first()
                 user = Username.query.filter_by(id=rev.reviewer).first()
