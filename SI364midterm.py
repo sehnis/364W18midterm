@@ -130,9 +130,8 @@ class ReviewForm(FlaskForm):
     submit = SubmitField()
 
 
-class SearchForm(FlaskForm):
-    score = StringField("Your Score out of 10: ")
-    desc = StringField("Please enter the text of your review: ")
+class TagForm(FlaskForm):
+    score = StringField("Select one or more tags to search (separated with commas): ")
     submit = SubmitField()
 
 #######################
@@ -229,13 +228,38 @@ def review():
         rev_tags = str(form.tags.data).split(",")
         found_review = Review.query.filter_by(reviewer=rev_username, game=rev_game).first()
         for rt in rev_tags:
-            new_tag = Tag(found_review.id, rt)
-            if not Tag.query.filter_by(review=found_review.id, tagtext=rt):
+            print(rt)
+            if not Tag.query.filter_by(review=found_review.id, tagtext=rt.strip()).first():
+                new_tag = Tag(found_review.id, rt.strip())
                 db.session.add(new_tag)
                 db.session.commit()
         return redirect(url_for('all_reviews'))
     return render_template('new_review.html',form=form)
 
+@app.route('/tags', methods=['GET', 'POST'])
+def tags():
+    form = Form()
+    if form.validate_on_submit():
+
+        return render_template('game_results.html', results=found_games)
+    return render_template('home.html',form=form)
+
+@app.route('/tag_results')
+def tag_results():
+    results = []
+    if request.args:
+        tags = request.args.get('tags')
+        tag_list = str(form.tags.data).split(",")
+        for tl in tag_list:
+            found = Tag.query.filter_by(tagtext=tl.strip()).all()
+            for f in found:
+                rev = Review.query.filter_by(id=f.review).first()
+                game = Game.query.filter_by(id=rev.game).first()
+                user = Username.query.filter_by(id=rev.reviewer).first()
+                rev_tuple = (user.name, game.name, rev.rating, tl)
+                if rev_tuple not in results:
+                    results.append(rev_tuple)
+    return render_template('tag_results.html', tr=results)
 
 @app.route('/results')
 def show_games():
