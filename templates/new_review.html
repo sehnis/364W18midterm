@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content1 %}
+{% if errmess %}<h4>{{ errmess }}</h4>{% endif %}
+
+Use this form to enter the information for your review. Scores range from 1 to 10, and descriptions are saved up to 512 characters.<br>
+To verify that your reviews are for real games, <b>you must have successfully searched for the game you intend to review.</b><br>
+(Hint: you may want to copy and paste a name from your search results)<br><br>
+<form action="{{ url_for('review') }}" method="POST">
+	{{ form.hidden_tag() }}
+    {{ form.name.label() }}{{ form.name() }}<br>
+    {{ form.reviewer.label() }}{{ form.reviewer() }}<br>
+    {{ form.score.label() }}{{ form.score() }}<br>
+    {{ form.desc.label() }}{{ form.desc(cols="40", rows="2") }}<br>
+    {{ form.tags.label() }}{{ form.tags() }}<br>
+    {{ form.submit() }}
+</form>
+{% endblock %}

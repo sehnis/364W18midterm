@@ -8,10 +8,12 @@ import os
 from flask import Flask, render_template, session, redirect, url_for, flash, request
 from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, SubmitField # Note that you may need to import more here! Check out examples that do what you want to figure out what.
-from wtforms.validators import Required # Here, too
+from wtforms.validators import Required, ValidationError # Here, too
+from wtforms.widgets import TextArea
 from flask_sqlalchemy import SQLAlchemy
 import json
 import requests
+
 
 # Pybomb is an API Wrapper for the GiantBomb REST API.
 import pybomb
@@ -43,6 +45,9 @@ class Username(db.Model):
     name = db.Column(db.String(64))
     userel = db.relationship('Review', backref='users')
 
+    def __init__(self, namein):
+        self.name = namein
+
     def __repr__(self):
         return "{} (ID: {})".format(self.name, self.id)
 
@@ -50,7 +55,7 @@ class Game(db.Model):
     __tablename__ = "games"
     id = db.Column(db.Integer,primary_key=True)
     name = db.Column(db.String(128))
-    tagline = db.Column(db.String(64))
+    tagline = db.Column(db.String(128))
     rating = db.Column(db.String(64))
     platforms = db.Column(db.String(256))
     gamerel = db.relationship('Review', backref='games')
@@ -80,7 +85,7 @@ class Review(db.Model):
         self.description = d
 
     def __repr__(self):
-        return "{} (ID: {})".format(self.name, self.id)
+        return "{} (ID: {})".format(self.game, self.id)
 
 class Tag(db.Model):
     __tablename__ = "tags"
@@ -88,8 +93,12 @@ class Tag(db.Model):
     review = db.Column(db.Integer, db.ForeignKey('reviews.id'), nullable=False)
     tagtext = db.Column(db.String(64))
 
+    def __init__(self, revin, textin):
+        self.review = revin
+        self.tagtext = textin
+
     def __repr__(self):
-        return "{} (ID: {})".format(self.name, self.id)
+        return "{} (ID: {})".format(self.tagtext, self.id)
 
 ###################
 ###### FORMS ######
@@ -106,16 +115,20 @@ class GameForm(FlaskForm):
     submit = SubmitField()
 
 class ReviewForm(FlaskForm):
+
+    def score_validator(form, field):
+        if int(field.data) > 10 :
+            raise ValidationError('ERROR -- Your score cannot be higher than 10.')
+        if int(field.data) < 1 :
+            raise ValidationError('ERROR -- Your score cannot be lower than 1.')
+
     name = StringField("What is the full name of the Game?: ", validators=[Required()])
     reviewer = StringField("Who are you reviewing this game as?: ", validators=[Required()])
-    score = StringField("Your Score out of 10: ", validators=[Required()])
-    desc = StringField("Please enter the text of your review: ")
+    score = StringField("Your Score out of 10: ", validators=[Required(), score_validator])
+    desc = StringField("Please enter the text of your review: ", widget=TextArea())
     tags = StringField("Please enter any tags for your review, separated by commas: ")
     submit = SubmitField()
 
-    def score_validator(form, field):
-        if int(score.data) > 10 | int(score.data) < 1 :
-            raise ValidationError('ERROR -- Your score must be between 1 and 10.')
 
 class SearchForm(FlaskForm):
     score = StringField("Your Score out of 10: ")
@@ -146,7 +159,7 @@ def search():
     form = GameForm()
     if form.validate_on_submit():
 
-        my_key = ''
+        my_key = '114d5ba3b41ef07a418ef17742dd0b7f2006f848'
         games_client = pybomb.GamesClient(my_key)
         response = games_client.search(
             filter_by={'name': form.name.data, 'platforms': form.platform.data},
@@ -178,23 +191,50 @@ def search():
         return render_template('game_results.html', results=found_games)
     return render_template('home.html',form=form)
 
-@app.route('/review', methods=['GET', 'POST'])
+@app.route('/new', methods=['GET', 'POST'])
 def review():
-    form = GameForm()
+    form = ReviewForm()
     if form.validate_on_submit():
+        # Handling Username
         rev_name = form.reviewer.data
+        found_user = Username.query.filter_by(name=rev_name).first()
+        if found_user:
+            rev_username = found_user.id
+        else:
+            new_user = Username(rev_name)
+            db.session.add(new_user)
+            db.session.commit()
+            found_user = Username.query.filter_by(name=rev_name).first()
+            rev_username = found_user.id
+        # Handling the game name
         game_name = form.name.data
-        rating = form.rating.data
+        found_game = Game.query.filter_by(name=game_name).first()
+        if found_game:
+            rev_game = found_game.id
+        else:
+            return render_template('new_review.html', form=form, errmess='ERROR -- Game not found. Make sure you have searched for it before.')
+        # Adding the rating and description.
+        rating = form.score.data
         if form.desc.data:
             rev_text = form.desc.data
         else:
             rev_text = 'No rationale given.'
-        new_review = Review(game_name, rev_name, rating, rev_text)
+        # Create the review; the tags are added after a review item is created.
+        if Review.query.filter_by(reviewer=rev_username, game=rev_game).first():
+            return render_template('new_review.html', form=form, errmess='ERROR -- This user has already submitted a review for this game.')
+        new_review = Review(rev_game, rev_username, rating, rev_text)
         db.session.add(new_review)
         db.session.commit()
-
-        return redirect(url_for('all_names'))
-    return render_template('base.html',form=form)
+        # Handle the tags
+        rev_tags = str(form.tags.data).split(",")
+        found_review = Review.query.filter_by(reviewer=rev_username, game=rev_game).first()
+        for rt in rev_tags:
+            new_tag = Tag(found_review.id, rt)
+            if not Tag.query.filter_by(review=found_review.id, tagtext=rt):
+                db.session.add(new_tag)
+                db.session.commit()
+        return redirect(url_for('all_reviews'))
+    return render_template('new_review.html',form=form)
 
 
 @app.route('/results')
@@ -212,9 +252,13 @@ def all_games():
     return render_template('games_list.html',games=games)
 
 @app.route('/reviews')
-def last_reviews():
-    revs = Review.query.all()[:10]
-    return render_template('last_reviews.html',reviews=revs)
+def all_reviews():
+    revs = []
+    for rev in Review.query.all():
+        rev_game = Game.query.filter_by(id=rev.game).first().name
+        rev_name = Username.query.filter_by(id=rev.reviewer).first().name
+        revs.append((rev_name, rev_game, rev.rating, rev.description))
+    return render_template('all_reviews.html',reviews=revs)
 
 
 

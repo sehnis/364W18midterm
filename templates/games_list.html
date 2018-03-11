@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content1 %}
+	{% if games %}
+		<b>Here are the games that you have searched for so far:</b><br><br>
+		{% for g in games %}
+			<b>{{ g['name'] }}</b><br>
+			<b>Description:</b>{{ g['tagline'] }}<br><br>
+		{% endfor %}
+	{% else %}
+		<b>You have not indexed any games yet.</b> Games will be added to this list after you search them; click<a href='/search'>here</a> to start searching!
+	{% endif %}
+{% endblock %}
