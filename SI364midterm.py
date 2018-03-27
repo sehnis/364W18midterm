@@ -24,8 +24,11 @@ app.debug = True
 app.use_reloader = True
 
 ## All app.config values
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///364midterm_sehnis.db'
+app.config['SECRET_KEY'] = 'hardtoguessstring'
+app.config["SQLALCHEMY_DATABASE_URI"] =  os.environ.get('DATABASE_URL') or "postgresql://localhost/midtermheroku" # TODO 364: You should edit this to correspond to the database name YOURUNIQNAMEHW4db and create the database of that name (with whatever your uniqname is; for example, my database would be jczettaHW4db). You may also need to edit the database URL further if your computer requires a password for you to run this.
+app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['HEROKU_ON'] = os.environ.get('HEROKU')
 
 ## Statements for db setup (and manager setup if using Manager)
 db = SQLAlchemy(app)
